@@ -1,0 +1,26 @@
+{
+  "mode": "central",
+  "outputFile": "data/predefined-result.json",
+  "answers": [
+    {
+      "question": "Would you like to apply for Start-up/MSME/Industrial Entrepreneur registration? (Check additional information for eligibility?)",
+      "answer": "MSME"
+    },
+    {
+      "question": "Do you require any of the following Intellectual Property for your business?",
+      "answer": "Trade Mark"
+    },
+    {
+      "question": "What is the legal entity type of your Business?",
+      "answer": "Private Limited Company"
+    },
+    {
+      "question": "Does your business require any Labour Law Registrations/ Licenses?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Do you wish to engage in any International Trade/ Foreign Trade activities?",
+      "answer": "No"
+    }
+  ]
+}
