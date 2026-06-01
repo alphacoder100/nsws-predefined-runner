@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSWS KYA Wizard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;min-height:100vh;color:#1a202c}
+.hdr{background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr-logo{font-size:26px}
+.hdr-title{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.hdr-sub{font-size:11px;opacity:.75;margin-top:2px}
+.prog-wrap{background:#cbd5e1;height:4px}
+.prog-bar{background:#3b82f6;height:4px;transition:width .35s ease}
+.wrap{max-width:680px;margin:0 auto;padding:24px 14px}
+.card{background:#fff;border-radius:14px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,.08);margin-bottom:16px}
+.step-chip{display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:20px;padding:2px 11px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.q-num{float:right;font-size:12px;color:#94a3b8}
+.q-text{font-size:18px;font-weight:600;color:#111827;line-height:1.55;margin:10px 0 22px}
+.multi-hint{display:inline-block;background:#fef3c7;color:#92400e;border-radius:16px;padding:2px 10px;font-size:11px;font-weight:600;margin-bottom:14px}
+.opts{display:flex;flex-direction:column;gap:9px}
+.opt{text-align:left;padding:13px 16px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:15px;color:#374151;transition:border-color .13s,background .13s;width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.opt:hover{border-color:#60a5fa;background:#eff6ff}
+.opt.sel{border-color:#2563eb;background:#dbeafe;color:#1e40af;font-weight:600}
+.opt-lbl{flex:1;text-align:left}
+.opt-tag{font-size:11px;color:#60a5fa;white-space:nowrap;flex-shrink:0}
+.chk-row{display:flex;align-items:flex-start;gap:11px;padding:13px 16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:15px;color:#374151;transition:border-color .13s,background .13s}
+.chk-row:hover{border-color:#60a5fa;background:#eff6ff}
+.chk-row.sel{border-color:#2563eb;background:#dbeafe}
+.chk-row input{width:17px;height:17px;flex-shrink:0;margin-top:2px;accent-color:#2563eb;cursor:pointer}
+.chk-lbl{flex:1}
+.chk-tag{font-size:11px;color:#60a5fa;margin-left:4px}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-top:24px}
+.btn{padding:9px 20px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:background .13s}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-ghost{background:#f1f5f9;color:#475569}
+.btn-ghost:hover:not(:disabled){background:#e2e8f0}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-primary:hover:not(:disabled){background:#1d4ed8}
+.btn-success{background:#16a34a;color:#fff;padding:11px 28px;font-size:15px}
+.btn-success:hover{background:#15803d}
+.btn-dl{background:#0891b2;color:#fff}
+.btn-dl:hover{background:#0e7490}
+.btn-danger{background:#f1f5f9;color:#dc2626;border:1px solid #fecaca}
+.btn-danger:hover{background:#fef2f2}
+.review-list{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}
+.rev-item{padding:13px 16px;background:#f8fafc;border-radius:10px;border-left:4px solid #3b82f6}
+.rev-step{font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.rev-q{font-size:13px;color:#374151;margin:3px 0}
+.rev-a{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}
+.rev-tag{display:inline-block;background:#dbeafe;color:#1e40af;border-radius:12px;padding:2px 10px;font-size:13px;font-weight:600}
+.json-pre{background:#0f172a;color:#a5f3fc;font-family:monospace;font-size:12px;border-radius:8px;padding:14px;max-height:180px;overflow-y:auto;margin-bottom:14px;white-space:pre-wrap;word-break:break-all}
+.info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:13px;font-size:13px;color:#1e40af;margin-bottom:18px;line-height:1.6}
+.info-box code{background:#dbeafe;padding:1px 6px;border-radius:4px}
+.err-box{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:13px;font-size:13px;color:#dc2626;margin-bottom:14px;line-height:1.6}
+.out-box{background:#0f172a;color:#cbd5e1;font-family:'Consolas','Courier New',monospace;font-size:12px;border-radius:10px;padding:18px;height:360px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6}
+.out-err{color:#f87171}.out-info{color:#60a5fa}.out-ok{color:#4ade80;font-weight:700}.out-res{color:#a78bfa}
+.spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:7px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.big-spin{width:44px;height:44px;border:4px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}
+.center{text-align:center;padding:52px 28px}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.sep{flex:1}
+.toast{position:fixed;bottom:20px;right:20px;background:#1e293b;color:#fff;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:600;z-index:999;opacity:0;transform:translateY(10px);transition:all .22s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.mode-card{padding:18px;border:2px solid #e2e8f0;border-radius:12px;cursor:pointer;text-align:center;transition:all .13s;background:#fff}
+.mode-card:hover{border-color:#93c5fd;background:#f8faff}
+.mode-card.act{border-color:#2563eb;background:#eff6ff}
+.mode-icon{font-size:26px;margin-bottom:6px}
+.mode-title{font-size:15px;font-weight:700;color:#111827}
+.mode-desc{font-size:12px;color:#64748b;margin-top:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">&#128737;</div>
+  <div>
+    <div class="hdr-title">NSWS KYA Wizard</div>
+    <div class="hdr-sub">Know Your Approvals &mdash; Select answers, generate config, auto-fill</div>
+  </div>
+</div>
+<div class="prog-wrap"><div class="prog-bar" id="pbar" style="width:0%"></div></div>
+
+<div class="wrap"><div id="app"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// EMBEDDED QUESTION DATA (from NSWS/data/results.json)
+// ─────────────────────────────────────────────────────────────
+const DECISION_TREE = [{"question":"Would you like to apply for Start-up/MSME/Industrial Entrepreneur registration? (Check additional information for eligibility?)","step":"STEP 1 Business Registration","type":"single-select","options":[{"text":"Startup","revealsQuestions":[]},{"text":"MSME","revealsQuestions":[]},{"text":"Industrial Entrepreneur Memorandum","revealsQuestions":[]},{"text":"None of the Above","revealsQuestions":[]}]},{"question":"Do you require any of the following Intellectual Property for your business?","step":"STEP 1 Business Registration","type":"multi-select","options":[{"text":"Trade Mark","revealsQuestions":[]},{"text":"Copyright","revealsQuestions":[]},{"text":"Patent","revealsQuestions":[]},{"text":"Geographical Indications","revealsQuestions":[]},{"text":"Designs","revealsQuestions":[]},{"text":"Lay-out Design","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]},{"question":"Do you have a legal entity registered in India?","step":"STEP 1 Business Registration","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[{"question":"How would you like to register your entity?","step":"STEP 1 Business Registration","type":"single-select","options":[{"text":"Company","revealsQuestions":[]},{"text":"Limited Liability Partnership","revealsQuestions":[]},{"text":"Branch Office/ Project Office/ Liaison Office","revealsQuestions":[]},{"text":"Foreign Limited Liability Partnership","revealsQuestions":[]},{"text":"Multi-State Cooperative Society","revealsQuestions":[]},{"text":"Consumer Cooperative","revealsQuestions":[]},{"text":"None of the Above","revealsQuestions":[]}]}]}]},{"question":"Are you a new entity employing labour for your project?","step":"STEP 1 Business Registration","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[{"question":"Are you looking to expand your project ?","step":"STEP 1 Business Registration","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]}]}]},{"question":"Will you be involved in trading of goods? (Import/Export)","step":"STEP 1 Business Registration","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]},{"question":"Which sector(s) best describes your project/ business activity?","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"Agriculture , Sericulture and Forestry","revealsQuestions":[]},{"text":"Aviation","revealsQuestions":[]},{"text":"Banking and Financial Services","revealsQuestions":[]},{"text":"Defence Manufacturing","revealsQuestions":[]},{"text":"Healthcare","revealsQuestions":[]},{"text":"Education and Skill Development including Medical Institutions","revealsQuestions":[]},{"text":"Food & Beverages, Catering, including Animal Husbandry and Fisheries","revealsQuestions":[]},{"text":"Infrastructure","revealsQuestions":[]},{"text":"Leather & Textiles","revealsQuestions":[]},{"text":"Materials Production & Processing, Minerals & Hydrocarbons","revealsQuestions":[]},{"text":"Renewable Energy, Power Generation and Distribution","revealsQuestions":[{"question":"Please select applicable products for your business:","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"Electricity Distribution and Transmission","revealsQuestions":[]},{"text":"Thermal and Nuclear Power","revealsQuestions":[]},{"text":"Solar Energy","revealsQuestions":[]},{"text":"Hydro Energy","revealsQuestions":[]},{"text":"Wind Energy","revealsQuestions":[]},{"text":"Other Renewable Energy Sources","revealsQuestions":[]},{"text":"River Valley Projects","revealsQuestions":[]},{"text":"Irrigation Projects","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]}]}]},{"question":"Would you be establishing any of the following facilities?","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"Common Hazardous waste treatment, storage and disposal facilities (TSDFs)","revealsQuestions":[]},{"text":"Common Effluent Treatment Plants (CETPs)","revealsQuestions":[]},{"text":"Common Municipal Solid Waste Management Facility (CMSWMF)","revealsQuestions":[]},{"text":"Building /Construction projects/Area Development projects and Townships","revealsQuestions":[]},{"text":"Special Economic Zone (SEZ)","revealsQuestions":[]},{"text":"Export Oriented Units (EOU)/ Electronic Hardware Technology Park (EHTP), Software Technology Park (STP)/ Bio-Technology Park (BTP)","revealsQuestions":[]},{"text":"Warehouse","revealsQuestions":[]},{"text":"Laboratory","revealsQuestions":[]},{"text":"Distilleries","revealsQuestions":[]},{"text":"Petroleum Service Station","revealsQuestions":[]}]},{"question":"Please indicate if you would require any of the following 'Special Clearances' to establish your business?","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"Private Security Business","revealsQuestions":[]},{"text":"Import/Export of Restricted Items","revealsQuestions":[]},{"text":"Arms/Ammunition","revealsQuestions":[]},{"text":"Dangerous Goods","revealsQuestions":[]},{"text":"Private Siding","revealsQuestions":[]},{"text":"CPWD Contractor Enlistment","revealsQuestions":[]},{"text":"Catering Services","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]},{"question":"Would you be needing any of the following registrations/certifications from BIS (Bureau of Indian Standards) or LM (Legal Metrology)?","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"ISI Product Certification","revealsQuestions":[]},{"text":"Manufacture Non standard Weights and Measures","revealsQuestions":[]},{"text":"Approval of Model of Weights and measures (manufacture/import)","revealsQuestions":[]},{"text":"Dealing in Pre-packages commodities","revealsQuestions":[]},{"text":"Gold Jewellery & Hallmarking","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]},{"question":"Do you deal in Essential Commodities? If yes, please select your desired activity:","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"Produce/Manufacture","revealsQuestions":[]},{"text":"Storage/Transport/Distribution/Disposal/Acquisition/Use/Consumption","revealsQuestions":[]},{"text":"Not applicable","revealsQuestions":[]}]},{"question":"Please select all products/services applicable to your business which you would additionally like to apply for:","step":"STEP 2 Business Activity Details","type":"multi-select","options":[{"text":"Explosives & Fireworks (Including Gunpowder and Ammonium Nitrate)","revealsQuestions":[]},{"text":"Ground Water Abstraction","revealsQuestions":[]},{"text":"Steel","revealsQuestions":[]},{"text":"Hazardous Waste","revealsQuestions":[]},{"text":"Compressor","revealsQuestions":[]},{"text":"Petroleum","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]},{"question":"Would you be manufacturing plastic carry bags?","step":"STEP 2 Business Activity Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]},{"question":"Will your business activity require dealing in chemicals? (Toxic, Hazardous, Petrochemicals, Chemicals & Fertilizers)","step":"STEP 2 Business Activity Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]},{"question":"Whether there is any foreign investment proposed from outside India and/or from a foreign owned or controlled Indian entity?","step":"STEP 3 Foreign Investment Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]},{"question":"Is your project(s) located in any of the following areas?","step":"STEP 4 Project Land Details","type":"multi-select","options":[{"text":"Aerodrome","revealsQuestions":[]},{"text":"Coastal Area","revealsQuestions":[]},{"text":"Highway","revealsQuestions":[]},{"text":"Land belonging to ministry of Railways","revealsQuestions":[]},{"text":"Offshore Area","revealsQuestions":[]},{"text":"Protected Area","revealsQuestions":[]},{"text":"Regulated Area","revealsQuestions":[]},{"text":"Salt Commissioner Organization (SCO) Land","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]},{"question":"Will you be carrying out activities on Forest/Wildlife Area/Eco Sensitive Zone ?","step":"STEP 4 Project Land Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[{"question":"Do you require clearing and breaking of forest land for non-forest purposes?","step":"STEP 4 Project Land Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]},{"question":"Do you require Diversion in National Park/Wildlife Sanctuary for commercial activities ?","step":"STEP 4 Project Land Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]},{"question":"Will you undertake developmental projects within 10kms of National Park/Wildlife Sanctuary?","step":"STEP 4 Project Land Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[{"question":"Please indicate project location:","step":"STEP 4 Project Land Details","type":"single-select","options":[{"text":"Within ESZ","revealsQuestions":[]},{"text":"Within 10km but outside ESZ","revealsQuestions":[]},{"text":"Within 10km but ESZ is not notified / is in draft stage","revealsQuestions":[]},{"text":"Mining of Mineral within the ESZ / 1 (one km) from National Parks and Sanctuaries whichever is higher","revealsQuestions":[]},{"text":"None of the above","revealsQuestions":[]}]}]},{"text":"No","revealsQuestions":[]}]}]},{"text":"No","revealsQuestions":[]}]},{"question":"Do you wish to construct/erect a structure within 20 Kms of a VFR airport or beyond 56 km from the IFR airport and requested height of proposed structure is less than 150 m Above Ground Level (AGL)?","step":"STEP 4 Project Land Details","type":"radio","options":[{"text":"Yes","revealsQuestions":[]},{"text":"No","revealsQuestions":[]}]}];
+
+// Portal server URL (for Run button)
+const PORTAL = 'http://localhost:3001';
+
+// ─────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────
+let mode = 'central';
+let screen = 'loading';  // loading | welcome | wizard | review | running | done
+let savedConfig = null;  // answers.config.json loaded from server
+
+// Flat question map built from DECISION_TREE
+const qMap = {};
+function flattenTree(node) {
+  if (!node || !node.question) return;
+  if (!qMap[node.question]) qMap[node.question] = node;
+  for (const opt of (node.options || []))
+    for (const child of (opt.revealsQuestions || [])) flattenTree(child);
+}
+DECISION_TREE.forEach(flattenTree);
+
+const rootLabels = DECISION_TREE.map(n => n.question);
+let queue = [...rootLabels];   // ordered list of question labels to ask
+let idx = 0;
+let answers = [];              // [{question, answer, step, type}]
+let answered = new Set();
+
+let runLog = '';
+let runDone = false;
+let runCode = null;
+let runErr  = '';
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const el = () => $('app');
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function setProg(pct) { $('pbar').style.width = pct + '%'; }
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function curQ() { return qMap[queue[idx]] || null; }
+function reveals(opt) { return (opt.revealsQuestions || []).length; }
+
+// ─────────────────────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────────────────────
+function buildConfig() {
+  return {
+    mode,
+    outputFile: 'data/predefined-result.json',
+    answers: answers.map(a => ({ question: a.question, answer: a.answer }))
+  };
+}
+
+function downloadJSON() {
+  const cfg = buildConfig();
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'answers.config.json';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('answers.config.json downloaded');
+}
+
+function copyJSON() {
+  navigator.clipboard.writeText(JSON.stringify(buildConfig(), null, 2))
+    .then(() => toast('JSON copied to clipboard'))
+    .catch(() => toast('Copy failed — use Download instead'));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Wizard logic
+// ─────────────────────────────────────────────────────────────
+function injectRevealed(opts, insertAt) {
+  let pos = insertAt;
+  for (const txt of (Array.isArray(opts) ? opts : [opts])) {
+    const q = qMap[queue[pos - 1]] || {};
+    const matchOpt = (q.options || []).find(o => o.text === txt);
+    if (matchOpt) {
+      for (const child of (matchOpt.revealsQuestions || [])) {
+        if (!queue.includes(child.question) && !answered.has(child.question)) {
+          queue.splice(pos++, 0, child.question);
+        }
+      }
+    }
+  }
+}
+
+function commit(single, isMulti) {
+  const q = curQ();
+  if (!q) return;
+
+  let answer;
+  if (isMulti) {
+    const checked = [...document.querySelectorAll('.chk-row.sel')].map(r => r.dataset.val);
+    if (!checked.length) { alert('Please select at least one option.'); return; }
+    answer = checked.length === 1 ? checked[0] : checked;
+  } else {
+    answer = single || (document.querySelector('.opt.sel') || {}).dataset?.val;
+    if (!answer) { alert('Please select an option.'); return; }
+  }
+
+  // Remove old answer for this question
+  answers = answers.filter(a => a.question !== q.question);
+  answers.push({ question: q.question, answer, step: q.step || '', type: q.type || '' });
+  answered.add(q.question);
+
+  // Inject revealed follow-up questions right after current position
+  idx++;
+  const texts = Array.isArray(answer) ? answer : [answer];
+  let insertAt = idx;
+  for (const txt of texts) {
+    const matchOpt = (q.options || []).find(o => o.text === txt);
+    for (const child of (matchOpt?.revealsQuestions || [])) {
+      if (!queue.includes(child.question) && !answered.has(child.question)) {
+        queue.splice(insertAt++, 0, child.question);
+      }
+    }
+  }
+
+  draw();
+}
+
+function goBack() {
+  if (idx <= 0) return;
+  // Remove the question at idx-1 from answers and remove its revealed follow-ups
+  const prevLabel = queue[idx - 1];
+  const prevQ = qMap[prevLabel];
+  const prevAns = prevQ ? answers.find(a => a.question === prevQ.question) : null;
+  if (prevAns && prevQ) {
+    const texts = Array.isArray(prevAns.answer) ? prevAns.answer : [prevAns.answer];
+    for (const txt of texts) {
+      const matchOpt = (prevQ.options || []).find(o => o.text === txt);
+      for (const child of (matchOpt?.revealsQuestions || [])) {
+        if (!answered.has(child.question)) {
+          const ci = queue.indexOf(child.question, idx - 1);
+          if (ci >= idx - 1) queue.splice(ci, 1);
+        }
+      }
+    }
+    answers = answers.filter(a => a.question !== prevQ.question);
+    answered.delete(prevQ.question);
+  }
+  idx--;
+  draw();
+}
+
+function restart() {
+  idx = 0; answers = []; answered.clear();
+  queue = [...rootLabels];
+  runLog = ''; runDone = false; runCode = null; runErr = '';
+  savedConfig = null;  // prevent auto-resume after explicit restart
+  screen = 'welcome';
+  setProg(0);
+  draw();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Run
+// ─────────────────────────────────────────────────────────────
+async function runAutoFill() {
+  screen = 'running';
+  runLog = ''; runDone = false; runCode = null; runErr = '';
+  draw();
+
+  try {
+    const res = await fetch(PORTAL + '/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, answers: answers.map(a => ({ question: a.question, answer: a.answer })) })
+    });
+
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(e.error || 'Server error ' + res.status);
+    }
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data:')) continue;
+        try { handleEv(JSON.parse(line.slice(5).trim())); } catch (_) {}
+      }
+    }
+    if (!runDone) { runDone = true; runCode = '0'; draw(); }
+  } catch (e) {
+    runErr = e.message;
+    addLog('err', 'Connection error: ' + e.message + '\n');
+    addLog('err', '\nMake sure the portal server is running:\n  cd nsws-predefined-runner\n  npm run portal\n');
+    runDone = true; runCode = '1'; draw();
+  }
+}
+
+function handleEv(ev) {
+  if (ev.type === 'done') { runCode = String(ev.text); runDone = true; draw(); return; }
+  if (ev.type === 'result') {
+    try {
+      const r = JSON.parse(ev.text);
+      const apv = r.approvals || [];
+      if (apv.length) {
+        addLog('res', '\n--- APPROVALS FOUND (' + apv.length + ') ---\n');
+        apv.forEach((a, i) => addLog('res', (i+1) + '. ' + (typeof a === 'string' ? a : JSON.stringify(a)) + '\n'));
+      }
+    } catch (_) { addLog('res', ev.text + '\n'); }
+    return;
+  }
+  addLog(ev.type, ev.text || '');
+}
+
+function addLog(type, text) {
+  const cls = type === 'stderr' || type === 'err' ? 'out-err'
+    : type === 'info' ? 'out-info'
+    : type === 'done' ? 'out-ok'
+    : type === 'res'  ? 'out-res'
+    : '';
+  runLog += '<span class="' + cls + '">' + esc(text) + '</span>';
+  const b = $('outbox');
+  if (b) { b.innerHTML = runLog; b.scrollTop = b.scrollHeight; }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Draw
+// ─────────────────────────────────────────────────────────────
+function draw() {
+  const app = el();
+
+  // ── Loading ──────────────────────────────────────────────
+  if (screen === 'loading') {
+    setProg(0);
+    app.innerHTML = `<div class="card center"><div class="big-spin"></div><p style="color:#64748b;font-size:14px">Loading...</p></div>`;
+    return;
+  }
+
+  // ── Resume (saved config found) ───────────────────────────
+  if (screen === 'resume') {
+    setProg(0);
+    const cfg = savedConfig;
+    const answerRows = (cfg.answers || []).map(a => {
+      const val = Array.isArray(a.answer) ? a.answer.join(', ') : a.answer;
+      return `<div class="rev-item"><div class="rev-q" style="font-size:12px;color:#64748b">${esc(a.question)}</div><div class="rev-a"><span class="rev-tag">${esc(val)}</span></div></div>`;
+    }).join('');
+
+    app.innerHTML = `
+    <div class="card">
+      <h2 style="font-size:19px;font-weight:700;margin-bottom:4px">&#128196; Saved Answers Found</h2>
+      <p style="color:#64748b;font-size:13px;margin-bottom:18px">
+        <strong>${cfg.answers.length}</strong> answers saved from your last run (mode: <strong>${cfg.mode || 'central'}</strong>).
+        Load them to skip the wizard and go straight to auto-fill.
+      </p>
+      <div class="review-list" style="max-height:260px;overflow-y:auto;margin-bottom:20px">${answerRows}</div>
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-ghost" onclick="screen='welcome';restart();draw()">Start fresh</button>
+        <div class="row">
+          <button class="btn btn-dl" onclick="loadSavedAnswers();screen='review';draw()">&#128196; Load &amp; Review</button>
+          <button class="btn btn-success" onclick="loadSavedAnswers();runAutoFill()">&#9654; Load &amp; Run Now</button>
+        </div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // ── Welcome ──────────────────────────────────────────────
+  if (screen === 'welcome') {
+    setProg(0);
+    app.innerHTML = `
+    <div class="card">
+      <h2 style="font-size:21px;font-weight:700;margin-bottom:5px">Know Your Approvals</h2>
+      <p style="color:#64748b;font-size:13px;margin-bottom:22px">Answer ${queue.length} questions about your business to generate the auto-fill config.</p>
+      <div class="mode-grid">
+        <div class="mode-card ${mode==='central'?'act':''}" onclick="mode='central';draw()">
+          <div class="mode-icon">&#127963;</div>
+          <div class="mode-title">Central</div>
+          <div class="mode-desc">Ministry &amp; central approvals</div>
+        </div>
+        <div class="mode-card ${mode==='state'?'act':''}" onclick="mode='state';draw()">
+          <div class="mode-icon">&#128506;</div>
+          <div class="mode-title">State</div>
+          <div class="mode-desc">State government approvals</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:15px" onclick="screen='wizard';draw()">
+        Start &rarr;
+      </button>
+    </div>`;
+    return;
+  }
+
+  // ── Wizard ───────────────────────────────────────────────
+  if (screen === 'wizard') {
+    const q = curQ();
+    if (!q || idx >= queue.length) { screen = 'review'; draw(); return; }
+
+    const total = queue.length;
+    setProg(Math.round(idx / total * 100));
+
+    const isMulti = q.type === 'multi-select';
+    const prevAns = answers.find(a => a.question === q.question);
+    const prevTexts = prevAns ? (Array.isArray(prevAns.answer) ? prevAns.answer : [prevAns.answer]) : [];
+
+    let optsHtml;
+    if (isMulti) {
+      optsHtml = (q.options || []).map(o => {
+        const rc = reveals(o);
+        return `<label class="chk-row" data-val="${esc(o.text)}" onclick="toggleChk(this)">
+          <input type="checkbox" onclick="event.stopPropagation();toggleChk(this.closest('.chk-row'))">
+          <span class="chk-lbl">${esc(o.text)}</span>
+          ${rc ? `<span class="chk-tag">+${rc} follow-up${rc>1?'s':''}</span>` : ''}
+        </label>`;
+      }).join('');
+    } else {
+      optsHtml = (q.options || []).map(o => {
+        const rc = reveals(o);
+        return `<button class="opt" data-val="${esc(o.text)}" onclick="pick(this.dataset.val)">
+          <span class="opt-lbl">${esc(o.text)}</span>
+          ${rc ? `<span class="opt-tag">+${rc} follow-up${rc>1?'s':''}</span>` : ''}
+        </button>`;
+      }).join('');
+    }
+
+    app.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <span class="step-chip">${esc(q.step || 'Question')}</span>
+        <span class="q-num">Q${idx+1} / ${total}${total > rootLabels.length ? ' (+ follow-ups)' : ''}</span>
+      </div>
+      ${isMulti ? '<span class="multi-hint">Select all that apply</span>' : ''}
+      <div class="q-text">${esc(q.question)}</div>
+      <div class="opts">${optsHtml}</div>
+      <div class="nav">
+        <button class="btn btn-ghost" onclick="goBack()" ${idx===0?'disabled':''}&larr; Back</button>
+        ${isMulti ? `<button class="btn btn-primary" onclick="commit(null,true)">Confirm &rarr;</button>` : '<div></div>'}
+      </div>
+    </div>`;
+
+    // Restore previous selection if back-navigating
+    if (prevTexts.length) {
+      if (isMulti) {
+        document.querySelectorAll('.chk-row').forEach(r => {
+          if (prevTexts.includes(r.dataset.val)) { r.classList.add('sel'); r.querySelector('input').checked = true; }
+        });
+      } else {
+        document.querySelectorAll('.opt').forEach(b => { if (prevTexts.includes(b.dataset.val)) b.classList.add('sel'); });
+      }
+    }
+    return;
+  }
+
+  // ── Review ───────────────────────────────────────────────
+  if (screen === 'review') {
+    setProg(100);
+    const items = answers.map(a => {
+      const tags = (Array.isArray(a.answer) ? a.answer : [a.answer])
+        .map(v => `<span class="rev-tag">&#10003; ${esc(v)}</span>`).join('');
+      return `<div class="rev-item">
+        <div class="rev-step">${esc(a.step||'')}</div>
+        <div class="rev-q">${esc(a.question)}</div>
+        <div class="rev-a">${tags}</div>
+      </div>`;
+    }).join('') || '<p style="color:#94a3b8;padding:10px 0">No answers yet.</p>';
+
+    app.innerHTML = `
+    <div class="card">
+      <h2 style="font-size:19px;font-weight:700;margin-bottom:4px">Review Your Answers</h2>
+      <p style="color:#64748b;font-size:13px;margin-bottom:20px">${answers.length} question${answers.length!==1?'s':''} answered &middot; Mode: <strong>${mode}</strong></p>
+      <div class="review-list">${items}</div>
+
+      <details style="margin-bottom:16px">
+        <summary style="cursor:pointer;font-size:12px;color:#64748b;font-weight:600;user-select:none">Preview JSON config</summary>
+        <div class="json-pre" style="margin-top:8px">${esc(JSON.stringify(buildConfig(), null, 2))}</div>
+      </details>
+
+      <div class="info-box">
+        <strong>Download JSON</strong> &rarr; saves <code>answers.config.json</code> to your machine.<br>
+        <strong>Run Auto-fill</strong> &rarr; sends answers to <code>localhost:3001</code> and fills the NSWS form automatically.
+        Requires the portal server to be running (<code>npm run portal</code> in nsws-predefined-runner/).
+      </div>
+
+      <div class="nav" style="flex-wrap:wrap;gap:8px">
+        <button class="btn btn-ghost" onclick="screen='wizard';idx=Math.max(0,answers.length-1);draw()">&larr; Edit</button>
+        <div class="row">
+          <button class="btn btn-ghost" onclick="copyJSON()">&#128203; Copy</button>
+          <button class="btn btn-dl"    onclick="downloadJSON()">&#8659; Download JSON</button>
+          <button class="btn btn-danger" onclick="restart()">&#8634; Restart</button>
+          <button class="btn btn-success" onclick="runAutoFill()">&#9654; Run Auto-fill</button>
+        </div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // ── Running ──────────────────────────────────────────────
+  if (screen === 'running') {
+    setProg(runDone ? 100 : 75);
+    app.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        ${runDone
+          ? `<span style="font-size:24px">${runCode==='0'?'&#9989;':'&#10060;'}</span>`
+          : '<div class="spin" style="border-color:rgba(59,130,246,.3);border-top-color:#3b82f6;width:22px;height:22px;border-width:3px"></div>'}
+        <h2 style="font-size:17px;font-weight:700">${runDone?(runCode==='0'?'Done! Form filled.':'Finished with errors'):'Filling form on NSWS...'}</h2>
+      </div>
+      <div class="out-box" id="outbox">${runLog}</div>
+      ${runDone ? `
+      <div class="nav" style="margin-top:18px">
+        <button class="btn btn-ghost" onclick="restart()">&#8634; Start over</button>
+        <button class="btn btn-primary" onclick="screen='done';draw()">View summary &rarr;</button>
+      </div>` : ''}
+    </div>`;
+    const b = $('outbox');
+    if (b) b.scrollTop = b.scrollHeight;
+    return;
+  }
+
+  // ── Done ─────────────────────────────────────────────────
+  if (screen === 'done') {
+    setProg(100);
+    app.innerHTML = `
+    <div class="card center">
+      <div style="font-size:60px;margin-bottom:16px">&#127881;</div>
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">All done!</h2>
+      <p style="color:#64748b;font-size:14px;margin-bottom:24px">
+        Approvals result saved to<br>
+        <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px">data/predefined-result.json</code>
+      </p>
+      <div class="row" style="justify-content:center">
+        <button class="btn btn-ghost" onclick="screen='running';draw()">View output</button>
+        <button class="btn btn-primary" onclick="restart()">&#8634; Start a new run</button>
+      </div>
+    </div>`;
+    return;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// UI callbacks
+// ─────────────────────────────────────────────────────────────
+function pick(val) {
+  document.querySelectorAll('.opt').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('.opt').forEach(b => { if (b.dataset.val === val) b.classList.add('sel'); });
+  setTimeout(() => commit(val, false), 200);
+}
+
+function toggleChk(row) {
+  if (!row) return;
+  const cb = row.querySelector('input[type="checkbox"]');
+  const now = !row.classList.contains('sel');
+  row.classList.toggle('sel', now);
+  if (cb) cb.checked = now;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Boot — try to load saved config from server
+// ─────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const res = await fetch(PORTAL + '/api/config');
+    if (res.ok) {
+      savedConfig = await res.json();
+      if (savedConfig && savedConfig.answers && savedConfig.answers.length) {
+        mode = savedConfig.mode || 'central';
+        screen = 'resume';
+      } else {
+        screen = 'welcome';
+      }
+    } else {
+      screen = 'welcome';
+    }
+  } catch (_) {
+    // Server not running — wizard still works for JSON download only
+    screen = 'welcome';
+  }
+  draw();
+}
+
+function loadSavedAnswers() {
+  // Restore answers from savedConfig into the wizard state
+  answers = [];
+  answered.clear();
+  queue = [...rootLabels];
+  idx = 0;
+
+  for (const saved of (savedConfig.answers || [])) {
+    const q = qMap[saved.question];
+    if (!q) continue;
+
+    const answer = saved.answer;
+    answers.push({ question: saved.question, answer, step: q.step || '', type: q.type || '' });
+    answered.add(saved.question);
+
+    // Inject revealed follow-ups
+    const texts = Array.isArray(answer) ? answer : [answer];
+    let insertAt = queue.indexOf(saved.question) + 1;
+    for (const txt of texts) {
+      const matchOpt = (q.options || []).find(o => o.text === txt);
+      for (const child of (matchOpt?.revealsQuestions || [])) {
+        if (!queue.includes(child.question)) {
+          queue.splice(insertAt++, 0, child.question);
+        }
+      }
+    }
+
+    idx++;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

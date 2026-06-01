@@ -4,7 +4,8 @@
   "description": "Fill the NSWS KYA form with a predefined set of answers and capture the approvals result.",
   "main": "src/runner.js",
   "scripts": {
-    "start": "node src/runner.js",
+    "start": "node src/portal.js",
+    "runner": "node src/runner.js",
     "run:custom": "node src/runner.js --config=",
     "portal": "node src/portal.js"
   },

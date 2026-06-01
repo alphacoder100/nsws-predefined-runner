@@ -30,8 +30,22 @@ const server = http.createServer(async (req, res) => {
 
   if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // GET / -> serve wizard portal
-  if (method === 'GET' && (url === '/' || url === '/portal.html')) {
+  // GET / or /wizard.html -> serve the standalone wizard (preferred entry point)
+  if (method === 'GET' && (url === '/' || url === '/wizard.html')) {
+    const wizardPath = path.join(RUNNER_DIR, 'public', 'wizard.html');
+    try {
+      const html = fs.readFileSync(wizardPath, 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`wizard.html not found at ${wizardPath}`);
+    }
+    return;
+  }
+
+  // GET /portal.html -> serve the old server-based portal (still supported)
+  if (method === 'GET' && url === '/portal.html') {
     try {
       const html = fs.readFileSync(PORTAL_HTML, 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -39,6 +53,24 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end(`Portal HTML not found at ${PORTAL_HTML}`);
+    }
+    return;
+  }
+
+  // GET /api/config -> return current answers.config.json (so wizard can pre-load saved answers)
+  if (method === 'GET' && url === '/api/config') {
+    try {
+      if (!fs.existsSync(CONFIG_PATH)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No saved config found.' }));
+        return;
+      }
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(config));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
     }
     return;
   }

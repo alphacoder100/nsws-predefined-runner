@@ -4,23 +4,115 @@
   "answers": [
     {
       "question": "Would you like to apply for Start-up/MSME/Industrial Entrepreneur registration? (Check additional information for eligibility?)",
-      "answer": "MSME"
+      "answer": "Startup"
     },
     {
       "question": "Do you require any of the following Intellectual Property for your business?",
-      "answer": "Trade Mark"
+      "answer": [
+        "Trade Mark",
+        "Copyright"
+      ]
     },
     {
-      "question": "What is the legal entity type of your Business?",
-      "answer": "Private Limited Company"
-    },
-    {
-      "question": "Does your business require any Labour Law Registrations/ Licenses?",
+      "question": "Do you have a legal entity registered in India?",
       "answer": "Yes"
     },
     {
-      "question": "Do you wish to engage in any International Trade/ Foreign Trade activities?",
-      "answer": "No"
+      "question": "Are you a new entity employing labour for your project?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Will you be involved in trading of goods? (Import/Export)",
+      "answer": "Yes"
+    },
+    {
+      "question": "Which sector(s) best describes your project/ business activity?",
+      "answer": [
+        "Agriculture , Sericulture and Forestry",
+        "Aviation",
+        "Infrastructure"
+      ]
+    },
+    {
+      "question": "Would you be establishing any of the following facilities?",
+      "answer": [
+        "Building /Construction projects/Area Development projects and Townships",
+        "Export Oriented Units (EOU)/ Electronic Hardware Technology Park (EHTP), Software Technology Park (STP)/ Bio-Technology Park (BTP)",
+        "Distilleries"
+      ]
+    },
+    {
+      "question": "Please indicate if you would require any of the following 'Special Clearances' to establish your business?",
+      "answer": [
+        "Private Security Business",
+        "Import/Export of Restricted Items"
+      ]
+    },
+    {
+      "question": "Would you be needing any of the following registrations/certifications from BIS (Bureau of Indian Standards) or LM (Legal Metrology)?",
+      "answer": [
+        "ISI Product Certification",
+        "Manufacture Non standard Weights and Measures"
+      ]
+    },
+    {
+      "question": "Do you deal in Essential Commodities? If yes, please select your desired activity:",
+      "answer": [
+        "Produce/Manufacture",
+        "Storage/Transport/Distribution/Disposal/Acquisition/Use/Consumption"
+      ]
+    },
+    {
+      "question": "Please select all products/services applicable to your business which you would additionally like to apply for:",
+      "answer": [
+        "Explosives & Fireworks (Including Gunpowder and Ammonium Nitrate)",
+        "Ground Water Abstraction",
+        "Compressor"
+      ]
+    },
+    {
+      "question": "Would you be manufacturing plastic carry bags?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Will your business activity require dealing in chemicals? (Toxic, Hazardous, Petrochemicals, Chemicals & Fertilizers)",
+      "answer": "Yes"
+    },
+    {
+      "question": "Whether there is any foreign investment proposed from outside India and/or from a foreign owned or controlled Indian entity?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Is your project(s) located in any of the following areas?",
+      "answer": [
+        "Aerodrome",
+        "Coastal Area",
+        "Salt Commissioner Organization (SCO) Land"
+      ]
+    },
+    {
+      "question": "Will you be carrying out activities on Forest/Wildlife Area/Eco Sensitive Zone ?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Do you require clearing and breaking of forest land for non-forest purposes?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Do you require Diversion in National Park/Wildlife Sanctuary for commercial activities ?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Will you undertake developmental projects within 10kms of National Park/Wildlife Sanctuary?",
+      "answer": "Yes"
+    },
+    {
+      "question": "Please indicate project location:",
+      "answer": "Within 10km but outside ESZ"
+    },
+    {
+      "question": "Do you wish to construct/erect a structure within 20 Kms of a VFR airport or beyond 56 km from the IFR airport and requested height of proposed structure is less than 150 m Above Ground Level (AGL)?",
+      "answer": "Yes"
     }
   ]
 }
