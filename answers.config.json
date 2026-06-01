@@ -27,32 +27,30 @@
     },
     {
       "question": "Which sector(s) best describes your project/ business activity?",
-      "answer": [
-        "Agriculture , Sericulture and Forestry",
-        "Aviation",
-        "Infrastructure"
-      ]
+      "answer": "Yes"
     },
     {
       "question": "Would you be establishing any of the following facilities?",
       "answer": [
-        "Building /Construction projects/Area Development projects and Townships",
-        "Export Oriented Units (EOU)/ Electronic Hardware Technology Park (EHTP), Software Technology Park (STP)/ Bio-Technology Park (BTP)",
-        "Distilleries"
+        "Common Hazardous waste treatment, storage and disposal facilities (TSDFs)",
+        "Common Effluent Treatment Plants (CETPs)",
+        "Common Municipal Solid Waste Management Facility (CMSWMF)"
       ]
     },
     {
       "question": "Please indicate if you would require any of the following 'Special Clearances' to establish your business?",
       "answer": [
-        "Private Security Business",
-        "Import/Export of Restricted Items"
+        "Import/Export of Restricted Items",
+        "Dangerous Goods",
+        "Private Siding"
       ]
     },
     {
       "question": "Would you be needing any of the following registrations/certifications from BIS (Bureau of Indian Standards) or LM (Legal Metrology)?",
       "answer": [
         "ISI Product Certification",
-        "Manufacture Non standard Weights and Measures"
+        "Approval of Model of Weights and measures (manufacture/import)",
+        "Dealing in Pre-packages commodities"
       ]
     },
     {
@@ -66,8 +64,8 @@
       "question": "Please select all products/services applicable to your business which you would additionally like to apply for:",
       "answer": [
         "Explosives & Fireworks (Including Gunpowder and Ammonium Nitrate)",
-        "Ground Water Abstraction",
-        "Compressor"
+        "Steel",
+        "Hazardous Waste"
       ]
     },
     {
@@ -87,7 +85,7 @@
       "answer": [
         "Aerodrome",
         "Coastal Area",
-        "Salt Commissioner Organization (SCO) Land"
+        "Highway"
       ]
     },
     {

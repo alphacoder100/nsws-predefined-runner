@@ -123,6 +123,7 @@ let runLog = '';
 let runDone = false;
 let runCode = null;
 let runErr  = '';
+let extractedResult = null;  // full result JSON received from portal after run
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -250,6 +251,7 @@ function restart() {
   idx = 0; answers = []; answered.clear();
   queue = [...rootLabels];
   runLog = ''; runDone = false; runCode = null; runErr = '';
+  extractedResult = null;
   savedConfig = null;  // prevent auto-resume after explicit restart
   screen = 'welcome';
   setProg(0);
@@ -304,12 +306,15 @@ function handleEv(ev) {
   if (ev.type === 'done') { runCode = String(ev.text); runDone = true; draw(); return; }
   if (ev.type === 'result') {
     try {
-      const r = JSON.parse(ev.text);
-      const apv = r.approvals || [];
-      if (apv.length) {
-        addLog('res', '\n--- APPROVALS FOUND (' + apv.length + ') ---\n');
-        apv.forEach((a, i) => addLog('res', (i+1) + '. ' + (typeof a === 'string' ? a : JSON.stringify(a)) + '\n'));
-      }
+      extractedResult = JSON.parse(ev.text);
+      const post = extractedResult.postSubmit || {};
+      const apv  = post.approvals || extractedResult.approvalsRequired || [];
+      const cnt  = post.approvalCount ?? apv.length;
+      addLog('res', '\n--- EXTRACTION COMPLETE: ' + cnt + ' approval(s) found ---\n');
+      apv.forEach((a, i) => {
+        const name = (typeof a === 'string') ? a : (a.name || a.rawText || JSON.stringify(a));
+        addLog('res', (i+1) + '. ' + name + '\n');
+      });
     } catch (_) { addLog('res', ev.text + '\n'); }
     return;
   }
@@ -520,20 +525,83 @@ function draw() {
     return;
   }
 
-  // ── Done ─────────────────────────────────────────────────
+  // ── Done / Results ────────────────────────────────────────
   if (screen === 'done') {
     setProg(100);
+
+    const post = extractedResult?.postSubmit || {};
+    const approvals = post.approvals || extractedResult?.approvalsRequired || [];
+    const screenshotUrl = extractedResult?.screenshotUrl || '';
+    const approvalCount = post.approvalCount ?? approvals.length;
+    const pageTitle = post.pageTitle || post.summary?.pageTitle || '';
+    const pageUrl   = post.pageUrl   || post.summary?.pageUrl   || '';
+
+    // Build approvals table
+    let approvalsHtml = '';
+    if (approvals.length) {
+      approvalsHtml = `
+      <h3 style="font-size:15px;font-weight:700;margin:20px 0 10px">
+        &#9989; ${approvalCount} Approval${approvalCount !== 1 ? 's' : ''} Required
+      </h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+        ${approvals.map((a, i) => {
+          const name  = (typeof a === 'string') ? a : (a.name || a.rawText || '');
+          const auth  = typeof a === 'object' ? (a.authority || '') : '';
+          const cat   = typeof a === 'object' ? (a.category  || '') : '';
+          const fee   = typeof a === 'object' ? (a.fee       || '') : '';
+          return `<div class="rev-item">
+            <div style="font-size:12px;color:#94a3b8;font-weight:600">${esc(String(i+1))}.</div>
+            <div style="font-size:14px;color:#111827;font-weight:600;margin:2px 0">${esc(name)}</div>
+            ${auth ? `<div style="font-size:12px;color:#64748b">&#127963; ${esc(auth)}</div>` : ''}
+            ${cat  ? `<div style="font-size:12px;color:#64748b">&#127991; ${esc(cat)}</div>` : ''}
+            ${fee  ? `<div style="font-size:12px;color:#64748b">&#128176; ${esc(fee)}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`;
+    } else {
+      approvalsHtml = `<div class="info-box" style="margin:16px 0">
+        No structured approvals were extracted. Check the screenshot or the raw output for details.
+      </div>`;
+    }
+
+    // Screenshot
+    const screenshotHtml = screenshotUrl ? `
+      <h3 style="font-size:15px;font-weight:700;margin:20px 0 10px">&#128247; Results Page Screenshot</h3>
+      <a href="${esc(screenshotUrl)}" target="_blank" style="display:block;margin-bottom:20px">
+        <img src="${esc(screenshotUrl)}" alt="Result screenshot"
+          style="width:100%;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in" />
+      </a>` : '';
+
+    // Download result JSON button
+    function dlResult() {
+      if (!extractedResult) return;
+      const blob = new Blob([JSON.stringify(extractedResult, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = 'predefined-result.json';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+    window._dlResult = dlResult;
+
     app.innerHTML = `
-    <div class="card center">
-      <div style="font-size:60px;margin-bottom:16px">&#127881;</div>
-      <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">All done!</h2>
-      <p style="color:#64748b;font-size:14px;margin-bottom:24px">
-        Approvals result saved to<br>
-        <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px">data/predefined-result.json</code>
-      </p>
-      <div class="row" style="justify-content:center">
-        <button class="btn btn-ghost" onclick="screen='running';draw()">View output</button>
-        <button class="btn btn-primary" onclick="restart()">&#8634; Start a new run</button>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <span style="font-size:28px">&#127881;</span>
+        <h2 style="font-size:20px;font-weight:700">Form Submitted Successfully</h2>
+      </div>
+      ${pageTitle ? `<p style="color:#64748b;font-size:13px;margin-bottom:4px">&#128196; ${esc(pageTitle)}</p>` : ''}
+      ${pageUrl   ? `<p style="margin-bottom:16px"><a href="${esc(pageUrl)}" target="_blank" style="font-size:12px;color:#2563eb">View results page &#8599;</a></p>` : '<div style="margin-bottom:16px"></div>'}
+
+      ${approvalsHtml}
+      ${screenshotHtml}
+
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px">
+        <button class="btn btn-ghost" onclick="screen='running';draw()">View run log</button>
+        <div class="row">
+          ${extractedResult ? `<button class="btn btn-dl" onclick="window._dlResult()">&#8659; Download Result JSON</button>` : ''}
+          <button class="btn btn-primary" onclick="restart()">&#8634; New run</button>
+        </div>
       </div>
     </div>`;
     return;

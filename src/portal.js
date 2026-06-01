@@ -6,9 +6,18 @@ const { spawn } = require('child_process');
 
 const PORT = 3001;
 const RUNNER_DIR = path.join(__dirname, '..');
+const DATA_DIR = path.join(RUNNER_DIR, 'data');
 const RESULTS_JSON = path.join(__dirname, '../../NSWS/data/results.json');
 const CONFIG_PATH = path.join(RUNNER_DIR, 'answers.config.json');
 const PORTAL_HTML = path.join(RUNNER_DIR, 'public', 'portal.html');
+
+const MIME = {
+  '.png':  'image/png',
+  '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.json': 'application/json',
+  '.html': 'text/html',
+};
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -22,7 +31,8 @@ function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const { method, url } = req;
+  const { method } = req;
+  const url = req.url.split('?')[0]; // strip query string
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -30,44 +40,56 @@ const server = http.createServer(async (req, res) => {
 
   if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // GET / or /wizard.html -> serve the standalone wizard (preferred entry point)
+  // ── Static: wizard + portal HTML ─────────────────────────────────────────
+
   if (method === 'GET' && (url === '/' || url === '/wizard.html')) {
-    const wizardPath = path.join(RUNNER_DIR, 'public', 'wizard.html');
+    const p = path.join(RUNNER_DIR, 'public', 'wizard.html');
     try {
-      const html = fs.readFileSync(wizardPath, 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
+      res.end(fs.readFileSync(p, 'utf8'));
     } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`wizard.html not found at ${wizardPath}`);
+      res.writeHead(500); res.end('wizard.html not found');
     }
     return;
   }
 
-  // GET /portal.html -> serve the old server-based portal (still supported)
   if (method === 'GET' && url === '/portal.html') {
     try {
-      const html = fs.readFileSync(PORTAL_HTML, 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
+      res.end(fs.readFileSync(PORTAL_HTML, 'utf8'));
     } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`Portal HTML not found at ${PORTAL_HTML}`);
+      res.writeHead(500); res.end('portal.html not found');
     }
     return;
   }
 
-  // GET /api/config -> return current answers.config.json (so wizard can pre-load saved answers)
+  // ── Static: data directory (screenshots, JSONs) ───────────────────────────
+  // Serves GET /data/<filename> from the local data/ folder.
+  // Used by the wizard to display screenshots.
+
+  if (method === 'GET' && url.startsWith('/data/')) {
+    const filename = path.basename(url); // prevent path traversal
+    const filePath = path.join(DATA_DIR, filename);
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404); res.end('Not found'); return;
+    }
+    const ext = path.extname(filename).toLowerCase();
+    const ct = MIME[ext] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': ct });
+    fs.createReadStream(filePath).pipe(res);
+    return;
+  }
+
+  // ── API: GET /api/config ──────────────────────────────────────────────────
+
   if (method === 'GET' && url === '/api/config') {
+    if (!fs.existsSync(CONFIG_PATH)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'No saved config.' })); return;
+    }
     try {
-      if (!fs.existsSync(CONFIG_PATH)) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No saved config found.' }));
-        return;
-      }
-      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(config));
+      res.end(fs.readFileSync(CONFIG_PATH, 'utf8'));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
@@ -75,16 +97,45 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /api/questions -> return decision tree from NSWS/data/results.json
-  if (method === 'GET' && url === '/api/questions') {
+  // ── API: GET /api/result ──────────────────────────────────────────────────
+  // Returns the latest predefined-result.json so the wizard can display
+  // extracted approvals + screenshot path after a run.
+
+  if (method === 'GET' && url === '/api/result') {
+    const resultPath = path.join(DATA_DIR, 'predefined-result.json');
+    const postPath   = path.join(DATA_DIR, 'predefined-result-post-submit.json');
+    if (!fs.existsSync(resultPath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'No result yet. Run the auto-fill first.' })); return;
+    }
     try {
-      if (!fs.existsSync(RESULTS_JSON)) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          error: 'results.json not found. Run the NSWS crawler first (open http://localhost:3000, click Start Central).',
-        }));
-        return;
+      const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+      // Merge post-submit data if available (has screenshotPath, pageSections, etc.)
+      if (fs.existsSync(postPath)) {
+        const post = JSON.parse(fs.readFileSync(postPath, 'utf8'));
+        result.postSubmit = post;
+        // Expose screenshot as a web-accessible relative path
+        if (post.screenshotPath) {
+          result.screenshotUrl = '/data/' + path.basename(post.screenshotPath);
+        }
       }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── API: GET /api/questions ───────────────────────────────────────────────
+
+  if (method === 'GET' && url === '/api/questions') {
+    if (!fs.existsSync(RESULTS_JSON)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'results.json not found. Run the NSWS crawler first.' })); return;
+    }
+    try {
       const data = JSON.parse(fs.readFileSync(RESULTS_JSON, 'utf8'));
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -99,32 +150,26 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /api/run -> save answers.config.json, spawn runner, stream output via SSE
+  // ── API: POST /api/run ────────────────────────────────────────────────────
+
   if (method === 'POST' && url === '/api/run') {
     const body = await readBody(req);
     const { mode = 'central', answers = [] } = body;
 
     if (!answers.length) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'No answers provided' }));
-      return;
+      res.end(JSON.stringify({ error: 'No answers provided' })); return;
     }
 
-    const config = {
-      mode,
-      outputFile: 'data/predefined-result.json',
-      answers,
-    };
-
+    const config = { mode, outputFile: 'data/predefined-result.json', answers };
     try {
+      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: `Could not save config: ${e.message}` }));
-      return;
+      res.end(JSON.stringify({ error: `Could not save config: ${e.message}` })); return;
     }
 
-    // Stream runner output via Server-Sent Events
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -136,25 +181,29 @@ const server = http.createServer(async (req, res) => {
       try { res.write(`data: ${JSON.stringify({ type, text })}\n\n`); } catch (_) {}
     };
 
-    send('info', `Config saved to answers.config.json\nStarting runner (mode: ${mode})...\n`);
+    send('info', `Starting runner (mode: ${mode})...\n`);
 
-    const proc = spawn('node', ['src/runner.js'], {
-      cwd: RUNNER_DIR,
-      env: { ...process.env },
-    });
-
-    proc.stdout.on('data', data => send('stdout', data.toString()));
-    proc.stderr.on('data', data => send('stderr', data.toString()));
+    const proc = spawn('node', ['src/runner.js'], { cwd: RUNNER_DIR, env: { ...process.env } });
+    proc.stdout.on('data', d => send('stdout', d.toString()));
+    proc.stderr.on('data', d => send('stderr', d.toString()));
 
     proc.on('close', code => {
       send('info', `\nProcess exited with code ${code}\n`);
 
-      // Attach result file contents if available
-      const resultPath = path.join(RUNNER_DIR, 'data', 'predefined-result.json');
+      // Send full result JSON — wizard uses this to build the results screen
+      const resultPath = path.join(DATA_DIR, 'predefined-result.json');
+      const postPath   = path.join(DATA_DIR, 'predefined-result-post-submit.json');
       if (fs.existsSync(resultPath)) {
         try {
           const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
-          send('result', JSON.stringify(result, null, 2));
+          if (fs.existsSync(postPath)) {
+            const post = JSON.parse(fs.readFileSync(postPath, 'utf8'));
+            result.postSubmit = post;
+            if (post.screenshotPath) {
+              result.screenshotUrl = '/data/' + path.basename(post.screenshotPath);
+            }
+          }
+          send('result', JSON.stringify(result));
         } catch (_) {}
       }
 
@@ -177,7 +226,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`NSWS KYA Wizard Portal running at http://localhost:${PORT}`);
-  console.log(`Reads questions from: ${RESULTS_JSON}`);
-  console.log(`Saves config to:      ${CONFIG_PATH}`);
+  console.log(`\nNSWS KYA Wizard  →  http://localhost:${PORT}`);
+  console.log(`Config           →  ${CONFIG_PATH}`);
+  console.log(`Data dir         →  ${DATA_DIR}\n`);
 });
