@@ -172,24 +172,18 @@ class DataExtractor {
   }
 
   // ── Parse structured approvals from the fullText body ─────────────────────
-  // The NSWS results page renders approvals in plain text as:
-  //   "[Name] For [Step] Issued by [Dept] [Ministry]"
-  // This parser extracts them reliably when card-based CSS selectors fail.
+  // NSWS renders results as: "[Name] For [Step] Issued by [Dept] [Ministry]"
+  // Split on "Issued by" → alternating [prevIssuedBy+name+step] and [issuedBy+nextName] chunks.
   static parseApprovalsFromText(fullText) {
     if (!fullText) return [];
 
-    // Isolate the CENTRAL APPROVALS section
     const sectionStart = fullText.search(/CENTRAL APPROVALS\s*\(\d+\)/);
     if (sectionStart === -1) return [];
     const sectionEnd = fullText.indexOf('Add to Dashboard', sectionStart);
     const section = fullText.slice(sectionStart, sectionEnd !== -1 ? sectionEnd : fullText.length);
 
-    // Count claimed by the page
     const countMatch = section.match(/CENTRAL APPROVALS\s*\((\d+)\)/);
     const claimedCount = countMatch ? parseInt(countMatch[1]) : 0;
-
-    // Split on "Issued by" — gives us alternating [name+step] and [dept+nextName] chunks
-    const parts = section.split(' Issued by ');
 
     const STEP_CATS = [
       'For Business Registration',
@@ -200,43 +194,105 @@ class DataExtractor {
     const STEP_RE = new RegExp(
       '\\s+(' + STEP_CATS.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')$'
     );
+    const NOTE_RE = /\s*This approval will be applied from project Project \d+\s*/gi;
 
-    // Boilerplate patterns that appear at the START of every chunk[i>=1]
-    // (left over from the previous entry's "Issued by" line)
-    const BOILERPLATE_RE = /^(?:DPIIT|Department of [A-Za-z,\s&]+?|Ministry of [A-Za-z,\s&]+?|Bureau of [A-Za-z\s]+?)(?:\s+(?:DPIIT|Department of [A-Za-z,\s&]+?|Ministry of [A-Za-z,\s&]+?))*\s*/;
-    const PROJECT_NOTE_RE = /\s*This approval will be applied from project Project \d+\s*/g;
+    // Words that appear in government ministry / department names but NOT in approval titles.
+    // When scanning words after "Ministry of", we stop at the first word NOT in this set.
+    const MINISTRY_VOCAB = new Set([
+      'of','and','&','the','for',
+      'ministry','department','bureau','directorate','office','commission',
+      'authority','board','council','division','secretariat','general','special',
+      'commerce','industry','consumer','affairs','civil','aviation',
+      'environment','forest','wildlife','climate','change','food',
+      'distribution','public','revenue','finance','defence','home',
+      'external','water','energy','agriculture','health','education',
+      'transport','tourism','culture','youth','sports','science',
+      'technology','electronics','information','broadcasting','petroleum',
+      'natural','resources','chemicals','fertilizers','textiles',
+      'shipping','ports','railways','urban','rural','development',
+      'housing','labour','employment','skill','tribal','social',
+      'justice','empowerment','women','child','welfare','dpiit',
+      'india','indian','national','central','invest','new','regional',
+    ]);
 
+    // Given a chunk that starts with "[issuedBy boilerplate][approvalName]",
+    // strip the boilerplate and return the approval name.
+    function extractName(chunk) {
+      chunk = chunk.replace(NOTE_RE, ' ').trim();
+
+      // Find the last "Ministry of" (or "DPIIT" if no Ministry of) in the chunk.
+      // Everything AFTER the ministry name is the approval name.
+      const lastMinistryIdx = chunk.lastIndexOf('Ministry of ');
+      const lastDpiitIdx    = chunk.lastIndexOf('DPIIT ');
+
+      let scanFrom;
+      if (lastMinistryIdx !== -1) {
+        scanFrom = lastMinistryIdx + 'Ministry of '.length;
+      } else if (lastDpiitIdx !== -1) {
+        scanFrom = lastDpiitIdx + 'DPIIT '.length;
+      } else {
+        return chunk; // No boilerplate found — the whole chunk is the name
+      }
+
+      // Scan words from scanFrom; skip words that are part of the ministry name.
+      const tail = chunk.slice(scanFrom);
+      const words = tail.split(/\s+/);
+      let nameStart = 0;
+      for (let w = 0; w < words.length; w++) {
+        const lc = words[w].toLowerCase().replace(/[^a-z]/g, '');
+        if (MINISTRY_VOCAB.has(lc)) { nameStart = w + 1; } // still in ministry name
+        else { nameStart = w; break; }                       // found approval name start
+      }
+      return words.slice(nameStart).join(' ').trim();
+    }
+
+    // Extract issuedBy text from start of a chunk (before the approval name starts).
+    function extractIssuedBy(chunk) {
+      chunk = chunk.replace(NOTE_RE, ' ').trim();
+      const lastMinistryIdx = chunk.lastIndexOf('Ministry of ');
+      if (lastMinistryIdx === -1) {
+        // Only "DPIIT" or similar
+        return chunk.split(/\s+(?=[A-Z][a-z])/)[0] || chunk;
+      }
+      const tail = chunk.slice(lastMinistryIdx + 'Ministry of '.length);
+      const words = tail.split(/\s+/);
+      let endOfMinistry = 0;
+      for (let w = 0; w < words.length; w++) {
+        const lc = words[w].toLowerCase().replace(/[^a-z]/g, '');
+        if (MINISTRY_VOCAB.has(lc)) endOfMinistry = w + 1;
+        else { endOfMinistry = w; break; }
+      }
+      return chunk.slice(0, lastMinistryIdx + 'Ministry of '.length + words.slice(0, endOfMinistry).join(' ').length).trim();
+    }
+
+    const parts = section.split(' Issued by ');
     const approvals = [];
 
     for (let i = 0; i < parts.length - 1; i++) {
-      let chunk = parts[i].replace(PROJECT_NOTE_RE, ' ').trim();
+      let chunk = parts[i].replace(NOTE_RE, ' ').trim();
 
-      // Extract step category from end of chunk
+      // Pull step category off the end
       const stepMatch = chunk.match(STEP_RE);
       if (!stepMatch) continue;
       const step = stepMatch[1].replace(/^For /, '');
       chunk = chunk.slice(0, chunk.length - stepMatch[0].length).trim();
 
-      // Strip boilerplate from the start (previous entry's dept/ministry text)
+      // Get approval name
       let name;
       if (i === 0) {
-        // First chunk starts with "CENTRAL APPROVALS (N) "
         name = chunk.replace(/^CENTRAL APPROVALS\s*\(\d+\)\s*/, '').trim();
       } else {
-        // Strip leading ministry/dept noise until we hit the real name
-        const stripped = chunk.replace(BOILERPLATE_RE, '').trim();
-        name = stripped.length > 3 ? stripped : chunk;
+        name = extractName(chunk);
       }
 
-      // Extract issuedBy from the start of the NEXT part
-      const nextPart = (parts[i + 1] || '').replace(PROJECT_NOTE_RE, ' ').trim();
-      const issuedByMatch = nextPart.match(/^((?:DPIIT|Department of [A-Za-z,\s&]+?|Ministry of [A-Za-z,\s&]+?|Bureau of [A-Za-z\s]+?)(?:\s+(?:DPIIT|Department of [A-Za-z,\s&]+?|Ministry of [A-Za-z,\s&]+?))*)\s*(?=[A-Z]|$)/);
-      const issuedBy = issuedByMatch ? issuedByMatch[1].trim() : '';
+      // Get issuedBy from start of next part
+      const nextPart = parts[i + 1] || '';
+      const issuedBy = extractIssuedBy(nextPart);
 
       // Split issuedBy into department + ministry
-      const ministryIdx = issuedBy.search(/\s+Ministry of\s/);
-      const department = ministryIdx > 0 ? issuedBy.slice(0, ministryIdx).trim() : issuedBy;
-      const ministry   = ministryIdx > 0 ? issuedBy.slice(ministryIdx).trim() : '';
+      const mIdx = issuedBy.search(/\s+Ministry of\s+/);
+      const department = mIdx > 0 ? issuedBy.slice(0, mIdx).trim() : issuedBy;
+      const ministry   = mIdx > 0 ? issuedBy.slice(mIdx).trim() : '';
 
       if (name && name.length > 3) {
         approvals.push({ name, step, department, ministry, issuedBy });
