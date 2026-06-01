@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSWS KYA Wizard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; min-height: 100vh; color: #1a202c; }
+
+    .header { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 16px 24px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .header-icon { font-size: 28px; }
+    .header-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+    .header-sub { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+    .progress-wrap { background: #cbd5e1; height: 5px; }
+    .progress-bar { background: #3b82f6; height: 5px; transition: width 0.4s ease; }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 28px 16px; }
+
+    .card { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+    .step-badge { display: inline-block; background: #eff6ff; color: #1d4ed8; border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    .question-counter { font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
+    .question-text { font-size: 19px; font-weight: 600; color: #111827; margin-bottom: 28px; line-height: 1.55; }
+
+    .type-badge { display: inline-block; background: #fef3c7; color: #92400e; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600; margin-bottom: 16px; margin-left: 8px; }
+
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .opt-btn { text-align: left; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; font-size: 15px; color: #374151; transition: border-color 0.15s, background 0.15s, transform 0.1s; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+    .opt-btn:hover { border-color: #60a5fa; background: #eff6ff; }
+    .opt-btn.selected { border-color: #2563eb; background: #dbeafe; color: #1e40af; font-weight: 600; }
+    .opt-btn:active { transform: scale(0.99); }
+    .opt-reveals { font-size: 11px; color: #60a5fa; white-space: nowrap; margin-left: 8px; flex-shrink: 0; }
+
+    .checkbox-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 10px; cursor: pointer; font-size: 15px; color: #374151; transition: border-color 0.15s, background 0.15s; }
+    .checkbox-row:hover { border-color: #60a5fa; background: #eff6ff; }
+    .checkbox-row.selected { border-color: #2563eb; background: #dbeafe; }
+    .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; accent-color: #2563eb; cursor: pointer; }
+    .checkbox-label { flex: 1; }
+    .checkbox-reveals { font-size: 11px; color: #60a5fa; margin-left: 4px; }
+
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
+
+    .btn { padding: 10px 22px; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s, transform 0.1s; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-ghost { background: #f1f5f9; color: #475569; }
+    .btn-ghost:hover:not(:disabled) { background: #e2e8f0; }
+    .btn-success { background: #16a34a; color: white; font-size: 16px; padding: 13px 32px; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { background: #f1f5f9; color: #dc2626; border: 1px solid #fecaca; }
+    .btn-danger:hover { background: #fef2f2; }
+    .btn-download { background: #0891b2; color: white; }
+    .btn-download:hover { background: #0e7490; }
+
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+    .mode-card { padding: 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.15s; background: white; }
+    .mode-card:hover { border-color: #93c5fd; background: #f8faff; }
+    .mode-card.active { border-color: #2563eb; background: #eff6ff; }
+    .mode-card-icon { font-size: 28px; margin-bottom: 8px; }
+    .mode-card-title { font-size: 16px; font-weight: 700; color: #111827; }
+    .mode-card-desc { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+    .review-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    .review-item { padding: 14px 18px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #3b82f6; }
+    .review-q-step { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .review-q-text { font-size: 14px; color: #374151; margin: 3px 0; }
+    .review-a { font-size: 15px; font-weight: 700; color: #1e40af; }
+    .review-a-tag { display: inline-block; background: #dbeafe; color: #1e40af; border-radius: 12px; padding: 2px 10px; font-size: 13px; margin: 2px 3px 2px 0; font-weight: 600; }
+
+    .output-wrap { position: relative; }
+    .output-box { background: #0f172a; color: #cbd5e1; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; border-radius: 10px; padding: 20px; height: 380px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+    .out-stdout { color: #cbd5e1; }
+    .out-stderr { color: #f87171; }
+    .out-info { color: #60a5fa; }
+    .out-done { color: #4ade80; font-weight: bold; }
+    .out-result { color: #a78bfa; }
+
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-center { text-align: center; padding: 64px 32px; }
+    .big-spinner { width: 48px; height: 48px; border: 4px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
+    .loading-text { color: #64748b; font-size: 15px; }
+
+    .error-card { text-align: center; padding: 40px 32px; }
+    .error-icon { font-size: 48px; margin-bottom: 16px; }
+    .error-title { font-size: 20px; font-weight: 700; color: #dc2626; margin-bottom: 8px; }
+    .error-msg { color: #64748b; font-size: 14px; margin-bottom: 16px; line-height: 1.6; }
+    .error-hint { background: #fef9c3; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; font-size: 13px; color: #78350f; margin-bottom: 20px; text-align: left; }
+
+    .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px; font-size: 13px; color: #1e40af; margin-bottom: 24px; }
+
+    .done-icon { font-size: 64px; text-align: center; margin-bottom: 20px; }
+    .done-title { font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .done-sub { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 28px; }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .json-preview { background: #0f172a; color: #a5f3fc; font-family: monospace; font-size: 12px; border-radius: 8px; padding: 14px; max-height: 200px; overflow-y: auto; margin-bottom: 16px; white-space: pre-wrap; word-break: break-all; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; z-index: 1000; opacity: 0; transform: translateY(12px); transition: all 0.25s; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">&#128737;</div>
+  <div>
+    <div class="header-title">NSWS KYA Wizard</div>
+    <div class="header-sub">Know Your Approvals &mdash; Guided Question Builder</div>
+  </div>
+</div>
+
+<div id="progress-wrap" class="progress-wrap" style="display:none">
+  <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+</div>
+
+<div class="container">
+  <div id="app"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================================================
+// State
+// =============================================================================
+let appState = 'loading';  // loading | welcome | wizard | review | running | done | error
+
+let mode = 'central';
+let allQuestionsData = {};   // label -> full node object
+let rootQuestionLabels = []; // top-level question labels from decisionTree
+let questionQueue = [];      // flat ordered list of labels to answer
+let answeredLabels = new Set();
+let currentIdx = 0;
+let answers = [];            // [{question, answer, step, type}] — answer may be string or string[]
+let runOutput = '';
+let runDone = false;
+let runExitCode = null;
+let errorMsg = '';
+
+// =============================================================================
+// Helpers
+// =============================================================================
+const $ = id => document.getElementById(id);
+const app = () => $('app');
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function setProgress(pct) {
+  const wrap = $('progress-wrap');
+  const bar = $('progress-bar');
+  if (wrap) wrap.style.display = pct > 0 ? 'block' : 'none';
+  if (bar) bar.style.width = pct + '%';
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// How many questions does a given option reveal?
+function revealsCount(optNode) {
+  if (!optNode) return 0;
+  return (optNode.revealsQuestions || []).length;
+}
+
+// =============================================================================
+// Load questions
+// =============================================================================
+async function loadQuestions() {
+  appState = 'loading';
+  draw();
+  try {
+    const res = await fetch('/api/questions');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (!data.decisionTree || !data.decisionTree.length) {
+      throw new Error('No questions found in results.json. The crawler may not have completed any explorations yet.');
+    }
+
+    function flattenNode(node) {
+      if (!node || !node.question) return;
+      if (!allQuestionsData[node.question]) {
+        allQuestionsData[node.question] = node;
+      }
+      for (const opt of (node.options || [])) {
+        for (const child of (opt.revealsQuestions || [])) {
+          if (typeof child === 'object' && child.question) flattenNode(child);
+        }
+      }
+    }
+    for (const node of data.decisionTree) flattenNode(node);
+
+    rootQuestionLabels = data.decisionTree.map(n => n.question);
+    questionQueue = [...rootQuestionLabels];
+
+    appState = 'welcome';
+    draw();
+  } catch (e) {
+    errorMsg = e.message;
+    appState = 'error';
+    draw();
+  }
+}
+
+// =============================================================================
+// Wizard logic
+// =============================================================================
+function currentQuestion() {
+  const label = questionQueue[currentIdx];
+  return label ? (allQuestionsData[label] || null) : null;
+}
+
+function pickOption(optText) {
+  document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.opt-btn').forEach(b => {
+    if (b.dataset.val === optText) b.classList.add('selected');
+  });
+  setTimeout(() => commitAnswer(optText, false), 220);
+}
+
+function commitAnswer(singleText, isMulti) {
+  const q = currentQuestion();
+  if (!q) return;
+
+  let selectedAnswer;
+  let selectedTexts = [];
+
+  if (isMulti) {
+    selectedTexts = [...document.querySelectorAll('.checkbox-row.selected')].map(el => el.dataset.val);
+    if (!selectedTexts.length) { alert('Please select at least one option.'); return; }
+    selectedAnswer = selectedTexts.length === 1 ? selectedTexts[0] : selectedTexts;
+  } else {
+    const text = singleText || (document.querySelector('.opt-btn.selected') || {}).dataset?.val;
+    if (!text) { alert('Please select an option.'); return; }
+    selectedAnswer = text;
+    selectedTexts = [text];
+  }
+
+  // Remove any previous answer for this question (back-navigation case)
+  answers = answers.filter(a => a.question !== q.question);
+  answers.push({ question: q.question, answer: selectedAnswer, step: q.step || '', type: q.type || '' });
+  answeredLabels.add(q.question);
+
+  // Inject revealed follow-up questions into the queue right after current position
+  for (const txt of selectedTexts) {
+    const matchedOpt = (q.options || []).find(o => o.text === txt);
+    if (matchedOpt) {
+      const revealed = (matchedOpt.revealsQuestions || [])
+        .map(c => typeof c === 'string' ? c : (c.question || ''))
+        .filter(Boolean);
+      let insertAt = currentIdx + 1;
+      for (const label of revealed) {
+        if (!questionQueue.includes(label) && !answeredLabels.has(label)) {
+          questionQueue.splice(insertAt++, 0, label);
+        }
+      }
+    }
+  }
+
+  currentIdx++;
+  draw();
+}
+
+function goBack() {
+  if (currentIdx <= 0) return;
+
+  // The question at currentIdx-1 is the one whose answer we're undoing.
+  const prevLabel = questionQueue[currentIdx - 1];
+  const prevQ = prevLabel ? allQuestionsData[prevLabel] : null;
+  const prevAnswer = prevQ ? answers.find(a => a.question === prevQ.question) : null;
+
+  if (prevAnswer && prevQ) {
+    // Remove any follow-up questions that this answer injected into the queue.
+    const prevTexts = Array.isArray(prevAnswer.answer) ? prevAnswer.answer : [prevAnswer.answer];
+    for (const txt of prevTexts) {
+      const matchedOpt = (prevQ.options || []).find(o => o.text === txt);
+      if (matchedOpt) {
+        const revealed = (matchedOpt.revealsQuestions || [])
+          .map(c => typeof c === 'string' ? c : (c.question || ''))
+          .filter(Boolean);
+        for (const label of revealed) {
+          // Only remove from queue if not yet answered (don't remove already-answered follow-ups)
+          if (!answeredLabels.has(label)) {
+            const idx = questionQueue.indexOf(label, currentIdx - 1);
+            if (idx >= currentIdx - 1) questionQueue.splice(idx, 1);
+          }
+        }
+      }
+    }
+    answers = answers.filter(a => a.question !== prevQ.question);
+    answeredLabels.delete(prevQ.question);
+  }
+
+  currentIdx--;
+  draw();
+}
+
+function restart() {
+  currentIdx = 0;
+  answers = [];
+  answeredLabels.clear();
+  questionQueue = [...rootQuestionLabels];
+  runOutput = '';
+  runDone = false;
+  runExitCode = null;
+  appState = 'welcome';
+  setProgress(0);
+  draw();
+}
+
+// =============================================================================
+// JSON config helpers
+// =============================================================================
+function buildConfig() {
+  const configAnswers = answers.map(a => ({ question: a.question, answer: a.answer }));
+  return { mode, outputFile: 'data/predefined-result.json', answers: configAnswers };
+}
+
+function downloadConfig() {
+  const config = buildConfig();
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'answers.config.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showToast('answers.config.json downloaded');
+}
+
+function copyConfig() {
+  const config = buildConfig();
+  navigator.clipboard.writeText(JSON.stringify(config, null, 2))
+    .then(() => showToast('JSON copied to clipboard'))
+    .catch(() => showToast('Could not copy — try the Download button'));
+}
+
+// =============================================================================
+// Draw
+// =============================================================================
+function draw() {
+  const container = app();
+  if (!container) return;
+
+  if (appState === 'loading') {
+    setProgress(0);
+    container.innerHTML = `
+      <div class="card loading-center">
+        <div class="big-spinner"></div>
+        <div class="loading-text">Loading questions from crawler data...</div>
+      </div>`;
+    return;
+  }
+
+  if (appState === 'error') {
+    setProgress(0);
+    container.innerHTML = `
+      <div class="card error-card">
+        <div class="error-icon">&#9888;</div>
+        <div class="error-title">Could not load questions</div>
+        <div class="error-msg">${esc(errorMsg)}</div>
+        <div class="error-hint">
+          <strong>How to fix:</strong><br>
+          1. Open the NSWS crawler dashboard at <code>http://localhost:3000</code><br>
+          2. Click <strong>Start Central</strong> and let it run to completion<br>
+          3. Come back here and click <strong>Retry</strong>
+        </div>
+        <button class="btn btn-primary" onclick="loadQuestions()">Retry</button>
+      </div>`;
+    return;
+  }
+
+  if (appState === 'welcome') {
+    setProgress(0);
+    container.innerHTML = `
+      <div class="card">
+        <h2 style="font-size:22px;font-weight:700;margin-bottom:6px">Select Mode</h2>
+        <p style="color:#64748b;font-size:14px;margin-bottom:24px">Choose which type of approvals to discover for your business.</p>
+        <div class="mode-grid">
+          <div class="mode-card ${mode==='central'?'active':''}" onclick="mode='central';draw()">
+            <div class="mode-card-icon">&#127963;</div>
+            <div class="mode-card-title">Central</div>
+            <div class="mode-card-desc">Ministry &amp; central government approvals</div>
+          </div>
+          <div class="mode-card ${mode==='state'?'active':''}" onclick="mode='state';draw()">
+            <div class="mode-card-icon">&#128506;</div>
+            <div class="mode-card-title">State</div>
+            <div class="mode-card-desc">State government approvals</div>
+          </div>
+        </div>
+        <p style="color:#64748b;font-size:13px;margin-bottom:20px">
+          You will be asked <strong>${questionQueue.length} question${questionQueue.length!==1?'s':''}</strong> about your business. Additional questions may appear based on your answers.
+        </p>
+        <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px" onclick="appState='wizard';draw()">
+          Start Wizard &rarr;
+        </button>
+      </div>`;
+    return;
+  }
+
+  if (appState === 'wizard') {
+    const q = currentQuestion();
+    if (!q || currentIdx >= questionQueue.length) {
+      appState = 'review'; draw(); return;
+    }
+
+    const totalKnown = questionQueue.length;
+    const progress = Math.round((currentIdx / totalKnown) * 100);
+    setProgress(progress);
+
+    const isMulti = q.type === 'multi-select';
+    const opts = q.options || [];
+
+    let optionsHtml;
+    if (isMulti) {
+      optionsHtml = opts.map(o => {
+        const rc = revealsCount(o);
+        return `
+        <label class="checkbox-row" data-val="${esc(o.text)}" onclick="toggleCheckbox(this)">
+          <input type="checkbox" onclick="event.stopPropagation();toggleCheckbox(this.closest('.checkbox-row'))">
+          <span class="checkbox-label">${esc(o.text)}</span>
+          ${rc ? `<span class="checkbox-reveals">+${rc} follow-up${rc>1?'s':''}</span>` : ''}
+        </label>`;
+      }).join('');
+    } else {
+      optionsHtml = opts.map(o => {
+        const rc = revealsCount(o);
+        return `
+        <button class="opt-btn" data-val="${esc(o.text)}" onclick="pickOption(this.dataset.val)">
+          <span>${esc(o.text)}</span>
+          ${rc ? `<span class="opt-reveals">+${rc} follow-up${rc>1?'s':''}</span>` : ''}
+        </button>`;
+      }).join('');
+    }
+
+    const prevAnswer = answers.find(a => a.question === q.question);
+    const prevTexts = prevAnswer ? (Array.isArray(prevAnswer.answer) ? prevAnswer.answer : [prevAnswer.answer]) : [];
+
+    container.innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <span class="step-badge">${esc(q.step || 'Question')}</span>
+          <span class="question-counter">Q${currentIdx+1} of ${totalKnown}${totalKnown > rootQuestionLabels.length ? ' (includes follow-ups)' : ''}</span>
+        </div>
+        ${isMulti ? '<span class="type-badge">Select all that apply</span>' : ''}
+        <div class="question-text">${esc(q.question)}</div>
+        <div class="options">${optionsHtml}</div>
+        <div class="nav">
+          <button class="btn btn-ghost" onclick="goBack()" ${currentIdx===0?'disabled':''}>
+            &larr; Back
+          </button>
+          ${isMulti ? `<button class="btn btn-primary" onclick="commitAnswer(null,true)">Confirm &rarr;</button>` : '<div></div>'}
+        </div>
+      </div>`;
+
+    // Restore previous selection if going back and re-entering this question
+    if (prevTexts.length) {
+      if (isMulti) {
+        document.querySelectorAll('.checkbox-row').forEach(row => {
+          if (prevTexts.includes(row.dataset.val)) {
+            row.classList.add('selected');
+            const cb = row.querySelector('input');
+            if (cb) cb.checked = true;
+          }
+        });
+      } else {
+        document.querySelectorAll('.opt-btn').forEach(btn => {
+          if (prevTexts.includes(btn.dataset.val)) btn.classList.add('selected');
+        });
+      }
+    }
+    return;
+  }
+
+  if (appState === 'review') {
+    setProgress(100);
+
+    const itemsHtml = answers.map(a => {
+      const ansArr = Array.isArray(a.answer) ? a.answer : [a.answer];
+      const tagsHtml = ansArr.map(v => `<span class="review-a-tag">&#10003; ${esc(v)}</span>`).join('');
+      return `
+      <div class="review-item">
+        <div class="review-q-step">${esc(a.step || 'Question')}</div>
+        <div class="review-q-text">${esc(a.question)}</div>
+        <div class="review-a" style="margin-top:4px;">${tagsHtml}</div>
+      </div>`;
+    }).join('') || '<p style="color:#94a3b8;padding:12px 0">No answers yet.</p>';
+
+    const configJson = JSON.stringify(buildConfig(), null, 2);
+
+    container.innerHTML = `
+      <div class="card">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Review Your Answers</h2>
+        <p style="color:#64748b;font-size:14px;margin-bottom:24px">${answers.length} question${answers.length!==1?'s':''} answered &middot; Mode: <strong>${mode}</strong></p>
+        <div class="review-list">${itemsHtml}</div>
+
+        <details style="margin-bottom:20px;">
+          <summary style="cursor:pointer;font-size:13px;color:#64748b;font-weight:600;margin-bottom:8px;user-select:none;">
+            Preview generated JSON (answers.config.json)
+          </summary>
+          <div class="json-preview">${esc(configJson)}</div>
+        </details>
+
+        <div class="info-box">
+          <strong>What happens next:</strong> clicking <strong>Run</strong> will save your answers to
+          <code>answers.config.json</code> and launch the NSWS runner to fill the form automatically
+          and return your required approvals.
+        </div>
+
+        <div class="nav" style="flex-wrap:wrap;gap:10px;">
+          <button class="btn btn-ghost" onclick="appState='wizard';currentIdx=Math.max(0,answers.length-1);draw()">&larr; Edit answers</button>
+          <div class="btn-row">
+            <button class="btn btn-ghost" onclick="copyConfig()">&#128203; Copy JSON</button>
+            <button class="btn btn-download" onclick="downloadConfig()">&#8659; Download JSON</button>
+            <button class="btn btn-danger" onclick="restart()">&#8634; Restart</button>
+            <button class="btn btn-success" onclick="startRun()">&#9654; Run &amp; Get Approvals</button>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (appState === 'running') {
+    setProgress(runDone ? 100 : 80);
+    container.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          ${runDone
+            ? `<span style="font-size:26px">${runExitCode === '0' ? '&#9989;' : '&#10060;'}</span>`
+            : '<div class="spinner" style="border-color:rgba(59,130,246,0.3);border-top-color:#3b82f6;width:24px;height:24px;border-width:3px;"></div>'}
+          <h2 style="font-size:18px;font-weight:700;">${runDone ? (runExitCode==='0' ? 'Run complete!' : 'Run finished with errors') : 'Running NSWS runner...'}</h2>
+        </div>
+        <div class="output-wrap">
+          <div class="output-box" id="output-box">${runOutput}</div>
+        </div>
+        ${runDone ? `
+          <div class="nav" style="margin-top:20px;">
+            <button class="btn btn-ghost" onclick="restart()">&#8634; Start over</button>
+            <button class="btn btn-primary" onclick="appState='done';draw()">View summary &rarr;</button>
+          </div>` : ''}
+      </div>`;
+    const ob = $('output-box');
+    if (ob) ob.scrollTop = ob.scrollHeight;
+    return;
+  }
+
+  if (appState === 'done') {
+    setProgress(100);
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:48px 32px;">
+        <div class="done-icon">&#127881;</div>
+        <div class="done-title">All done!</div>
+        <div class="done-sub">
+          Your approval results have been saved to<br>
+          <code style="background:#f1f5f9;padding:3px 8px;border-radius:5px;">data/predefined-result.json</code>
+        </div>
+        <button class="btn btn-primary" style="margin-right:10px;" onclick="appState='running';draw()">View output</button>
+        <button class="btn btn-ghost" onclick="restart()">&#8634; Start a new run</button>
+      </div>`;
+    return;
+  }
+}
+
+// =============================================================================
+// Multi-select toggle
+// =============================================================================
+function toggleCheckbox(row) {
+  if (!row) return;
+  const cb = row.querySelector('input[type="checkbox"]');
+  const nowSelected = !row.classList.contains('selected');
+  row.classList.toggle('selected', nowSelected);
+  if (cb) cb.checked = nowSelected;
+}
+
+// =============================================================================
+// Run
+// =============================================================================
+async function startRun() {
+  if (!answers.length) { alert('No answers to run.'); return; }
+
+  runOutput = '';
+  runDone = false;
+  runExitCode = null;
+  appState = 'running';
+  draw();
+
+  const configAnswers = answers.map(a => ({ question: a.question, answer: a.answer }));
+
+  try {
+    const response = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, answers: configAnswers }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(err.error || 'Server error');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data:')) continue;
+        try {
+          const ev = JSON.parse(line.slice(5).trim());
+          handleEvent(ev);
+        } catch (_) {}
+      }
+    }
+
+    if (!runDone) {
+      runDone = true;
+      runExitCode = '0';
+      draw();
+    }
+  } catch (e) {
+    appendOutput('stderr', `Error: ${e.message}\n`);
+    runDone = true;
+    runExitCode = '1';
+    draw();
+  }
+}
+
+function handleEvent(ev) {
+  if (ev.type === 'done') {
+    runExitCode = String(ev.text);
+    runDone = true;
+    draw();
+    return;
+  }
+  if (ev.type === 'result') {
+    try {
+      const result = JSON.parse(ev.text);
+      const approvals = result.approvals || result.centralApprovals || [];
+      if (approvals.length) {
+        appendOutput('result', `\n--- APPROVALS FOUND (${approvals.length}) ---\n`);
+        approvals.forEach((a, i) => appendOutput('result', `${i+1}. ${typeof a === 'string' ? a : JSON.stringify(a)}\n`));
+      }
+    } catch (_) {
+      appendOutput('result', ev.text + '\n');
+    }
+    return;
+  }
+  appendOutput(ev.type, ev.text || '');
+}
+
+function appendOutput(type, text) {
+  const cls = type === 'stderr' ? 'out-stderr'
+    : type === 'info' ? 'out-info'
+    : type === 'done' ? 'out-done'
+    : type === 'result' ? 'out-result'
+    : 'out-stdout';
+  runOutput += `<span class="${cls}">${esc(text)}</span>`;
+  const ob = $('output-box');
+  if (ob) { ob.innerHTML = runOutput; ob.scrollTop = ob.scrollHeight; }
+}
+
+// =============================================================================
+// Boot
+// =============================================================================
+loadQuestions();
+</script>
+</body>
+</html>

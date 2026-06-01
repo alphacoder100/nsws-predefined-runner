@@ -30,7 +30,12 @@ if (!fs.existsSync(configPath)) {
 }
 
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-const { mode = 'central', answers = [], outputFile = 'data/predefined-result.json' } = config;
+const {
+  mode = 'central',
+  answers = [],
+  outputFile = 'data/predefined-result.json',
+  postSubmitOutputFile = null,
+} = config;
 
 if (!answers.length) {
   console.error('No answers defined in config.');
@@ -105,46 +110,51 @@ async function run() {
       if (!pending.length) break; // nothing left to fill
 
       for (const field of pending) {
-        const answerText = answerMap.get(norm(field.label));
-        console.log(`[runner] Filling: "${field.label}" → "${answerText}"`);
+        const rawAnswer = answerMap.get(norm(field.label));
+        // answer may be a string (single) or array (multi-select from wizard)
+        const answerTexts = Array.isArray(rawAnswer) ? rawAnswer : [rawAnswer];
+        console.log(`[runner] Filling: "${field.label}" → ${JSON.stringify(rawAnswer)}`);
 
         // Expand the correct accordion step before filling
         if (field.step) await fieldDiscovery.expandStepByHeader(field.step);
         await fieldDiscovery.discover(); // refresh data-nsws-id after expansion
 
-        let optionId = null;
-
-        if (field.type === 'radio') {
-          const match = (field.options || []).find(o => norm(o.text) === norm(answerText));
-          if (!match) {
-            console.warn(`[runner] Option "${answerText}" not found in radio "${field.label}" — skipping`);
-            appliedQuestions.add(norm(field.label));
-            continue;
-          }
-          optionId = match.id;
-
-        } else if (field.type === 'ant-select') {
-          const options = await fieldDiscovery.getSelectOptions(field.id);
-          const match = options.find(o => norm(o.text) === norm(answerText));
-          // FormFiller does its own text-based search inside the dropdown;
-          // optionId is only used as a fallback when the element needs to be located.
-          optionId = match ? match.id : field.id;
-        }
-
         const fieldsBefore = await fieldDiscovery.discover();
         const labelsBefore = new Set(fieldsBefore.map(f => f.label));
 
-        try {
-          await formFiller.fillField({
-            fieldId: field.id,
-            fieldType: field.type,
-            optionId,
-            text: answerText,
-            label: field.label,
-            step: field.step,
-          });
-        } catch (e) {
-          console.error(`[runner] Fill failed for "${field.label}": ${e.message}`);
+        let anyFillFailed = false;
+        for (const answerText of answerTexts) {
+          let optionId = null;
+
+          if (field.type === 'radio') {
+            const match = (field.options || []).find(o => norm(o.text) === norm(answerText));
+            if (!match) {
+              console.warn(`[runner] Option "${answerText}" not found in radio "${field.label}" — skipping`);
+              continue;
+            }
+            optionId = match.id;
+          } else if (field.type === 'ant-select') {
+            const options = await fieldDiscovery.getSelectOptions(field.id);
+            const match = options.find(o => norm(o.text) === norm(answerText));
+            optionId = match ? match.id : field.id;
+          }
+
+          try {
+            await formFiller.fillField({
+              fieldId: field.id,
+              fieldType: field.type,
+              optionId,
+              text: answerText,
+              label: field.label,
+              step: field.step,
+            });
+          } catch (e) {
+            console.error(`[runner] Fill failed for "${field.label}" option "${answerText}": ${e.message}`);
+            anyFillFailed = true;
+          }
+        }
+
+        if (anyFillFailed) {
           appliedQuestions.add(norm(field.label));
           continue;
         }
@@ -167,7 +177,7 @@ async function run() {
         stepData.push({
           step: field.step || '',
           question: field.label,
-          answerSelected: answerText,
+          answerSelected: Array.isArray(rawAnswer) ? rawAnswer.join(', ') : rawAnswer,
           newQuestionsRevealed: newQs,
           additionalInfoPanel: additionalInfo,
         });
@@ -198,6 +208,32 @@ async function run() {
       if (extractionResult.apiResponses.length) {
         console.log(`[runner] ${extractionResult.apiResponses.length} API response(s) captured`);
       }
+
+      // Write post-submit data to a dedicated JSON
+      const postSubmitPath = path.resolve(
+        postSubmitOutputFile ||
+        outputFile.replace(/(\.[^.]+)$/, '-post-submit$1')
+      );
+      const postSubmitDir = path.dirname(postSubmitPath);
+      if (!fs.existsSync(postSubmitDir)) fs.mkdirSync(postSubmitDir, { recursive: true });
+
+      const postSubmitData = {
+        extractedAt: new Date().toISOString(),
+        pageUrl: extractionResult.summary?.pageUrl || '',
+        pageTitle: extractionResult.summary?.pageTitle || '',
+        approvalCount: extractionResult.approvalCount,
+        extractionSource: extractionResult.extractionSource,
+        summary: extractionResult.summary,
+        approvals: extractionResult.approvals,
+        tables: extractionResult.tables,
+        pageSections: extractionResult.pageSections,
+        fullText: extractionResult.fullText,
+        screenshotPath: extractionResult.screenshotPath,
+        apiResponses: extractionResult.apiResponses,
+      };
+
+      fs.writeFileSync(postSubmitPath, JSON.stringify(postSubmitData, null, 2));
+      console.log(`[runner] Post-submit data saved → ${postSubmitPath}`);
     } else {
       console.warn('[runner] Submit button not visible — form may be incomplete or answers are insufficient');
     }

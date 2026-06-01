@@ -5,7 +5,8 @@
   "main": "src/runner.js",
   "scripts": {
     "start": "node src/runner.js",
-    "run:custom": "node src/runner.js --config="
+    "run:custom": "node src/runner.js --config=",
+    "portal": "node src/portal.js"
   },
   "type": "commonjs",
   "dependencies": {
